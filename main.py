@@ -1,9 +1,11 @@
 import os
 import asyncio
-
+from time import time
+import scraper
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from discord.ext import tasks
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -24,7 +26,7 @@ DOMANDE = [
     "What is your favorite period to collect?",
     "For how long have you been collecting?",
     "Tell us your most unique piece in your collection",
-    "What do you consider to be your final grail?"
+    "What do you consider to be your final grail?",
     "Show us your collection with an image (send an image in the DM)",
 ]
 TIMEOUT_RISPOSTA = 120 #Time to reply before timeout  
@@ -57,6 +59,9 @@ async def on_ready():
         print(f"Sincronizzati {len(synced)} comandi sul server")
     except Exception as e:
         print(f"Errore sync: {e}")
+
+    if not scrape_and_notify.is_running():   #since on_ready is called every time the bot reconnects, we check if the task is already running to avoid multiple instances
+        scrape_and_notify.start()
 
 
 @bot.tree.command(name="questionnaire", description="Starts a questionnaire about your collection")
@@ -134,6 +139,37 @@ async def flex(interaction: discord.Interaction):
             embed.add_field(name=domanda, value=risposta, inline=False)
 
     await interaction.response.send_message(embed=embed, ephemeral=False)
+
+@bot.tree.command(name="credits", description="Show the credits for this bot")
+async def credits(interaction: discord.Interaction):
+
+    embed = discord.Embed(title="Credits", color=discord.Color.blurple())
+    embed.add_field(name="Developer", value="donmatteoh #5325", inline=False)
+    embed.add_field(name="GitHub repo", value="https://github.com/AlessioTaruffi/Lippmann", inline=False)
+    embed.add_field(name="Special thanks to", value="Adrian bot for making me want to code this", inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=False)
+
+@tasks.loop(seconds=1200)  #using tasks.loop to run the scraping every 20 minutes
+async def scrape_and_notify():
+    try:
+        # to_thread is used to run the blocking scrape_website function in a separate thread, allowing the bot to remain responsive
+        updated = await asyncio.to_thread(
+            scraper.scrape_website, "https://www.ersatzmilitaria.com/shop.php"
+        )
+        if updated:
+            channel = bot.get_channel(1520822775504175174)
+            if channel is None:
+                print("Channel not found, check CHANNEL ID")
+                return
+            for sito, nuoviItem in updated.items():
+                await channel.send(f"New items found on {sito}: {nuoviItem} new items!")
+    except Exception as e:
+        print(f"Error during scraping: {e}")
+
+@scrape_and_notify.before_loop
+async def before_scrape():
+    await bot.wait_until_ready()  # aspetta che il bot sia pronto prima del primo giro
+
 
 
 bot.run(TOKEN)
