@@ -154,15 +154,24 @@ async def scrape_and_notify():
     try:
         # to_thread is used to run the blocking scrape_website function in a separate thread, allowing the bot to remain responsive
         updated = await asyncio.to_thread(
-            scraper.scrape_website, "https://www.ersatzmilitaria.com/shop.php"
+            scraper.scrape_website, "https://www.dragoonmilitaria.com/shop.php"
         )
         if updated:
             channel = bot.get_channel(1520822775504175174)
             if channel is None:
                 print("Channel not found, check CHANNEL ID")
                 return
-            for sito, nuoviItem in updated.items():
-                await channel.send(f"New items found on {sito}: {nuoviItem} new items!")
+            await channel.send("New items found on Dragoon Militaria: " + str(len(updated)) + " new items")
+            for code, (alt, img_url) in updated.items():
+                embed = discord.Embed(
+                    title=f"New item found: {code}",
+                    description=f"Title: {alt}" if alt else "No alt text available",
+                    color=discord.Color.green(),
+                )
+                if img_url:
+                    embed.set_image(url=img_url)
+                await channel.send(embed=embed)
+                
     except Exception as e:
         print(f"Error during scraping: {e}")
 
