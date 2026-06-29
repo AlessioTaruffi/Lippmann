@@ -43,7 +43,7 @@ risposte_salvate = {}
 sessioni_attive = set()
 
 
-GUILD_ID = 1520620466769887383  #Server ID (for faster command updates)
+GUILD_ID = os.getenv("GUILD_ID")  #Server ID (for faster command updates)
 
 '''
 on_ready is called when the bot is ready to start receiving events
@@ -157,7 +157,7 @@ async def scrape_and_notify():
             scraper.scrape_website, "https://www.dragoonmilitaria.com/shop.php"
         )
         if updated:
-            channel = bot.get_channel(1520822775504175174)
+            channel = bot.get_channel(1521048449280118885) #thread per dragoon
             if channel is None:
                 print("Channel not found, check CHANNEL ID")
                 return
