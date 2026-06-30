@@ -15,13 +15,12 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
-'''
-DOMANDE = [
-    "What is your favorite period to collect?",
-    "For how long have you been collecting?",
-    "Tell us your most unique piece in your collection",
-    "What do you consider to be your final grail?"
-]'''
+
+sitesToScrape = [
+    "https://www.dragoonmilitaria.com/shop.php",
+    "https://www.imcsmilitaria.com/shop.php",
+]
+
 DOMANDE = [
     "What is your favorite period to collect?",
     "For how long have you been collecting?",
@@ -151,29 +150,31 @@ async def credits(interaction: discord.Interaction):
 
 @tasks.loop(seconds=1200)  #using tasks.loop to run the scraping every 20 minutes
 async def scrape_and_notify():
-    try:
-        # to_thread is used to run the blocking scrape_website function in a separate thread, allowing the bot to remain responsive
-        updated = await asyncio.to_thread(
-            scraper.scrape_website, "https://www.dragoonmilitaria.com/shop.php"
-        )
-        if updated:
-            channel = bot.get_channel(1521048449280118885) #thread per dragoon
-            if channel is None:
-                print("Channel not found, check CHANNEL ID")
-                return
-            await channel.send("New items found on Dragoon Militaria: " + str(len(updated)) + " new items")
-            for code, (alt, img_url) in updated.items():
-                embed = discord.Embed(
-                    title=f"New item found: {code}",
-                    description=f"Title: {alt}" if alt else "No alt text available",
-                    color=discord.Color.green(),
-                )
-                if img_url:
-                    embed.set_image(url=img_url)
-                await channel.send(embed=embed)
-                
-    except Exception as e:
-        print(f"Error during scraping: {e}")
+
+    for url in sitesToScrape:
+        try:
+            # to_thread is used to run the blocking scrape_website function in a separate thread, allowing the bot to remain responsive
+            updated, nomesito = await asyncio.to_thread(
+                scraper.scrape_website, url
+            )
+            if updated:
+                channel = bot.get_channel(int(os.getenv(nomesito))) #thread per dragoon
+                if channel is None:
+                    print("Channel not found, check CHANNEL ID")
+                    return
+                await channel.send(f"New items found on {nomesito}: " + str(len(updated)) + " new items")
+                for code, (alt, img_url) in updated.items():
+                    embed = discord.Embed(
+                        title=f"New item found",
+                        description=f"Title: {alt}" if alt else "No title text available",
+                        color=discord.Color.green(),
+                    )
+                    if img_url:
+                        embed.set_image(url=img_url)
+                    await channel.send(embed=embed)
+                    
+        except Exception as e:
+            print(f"Error during scraping: {e}")
 
 @scrape_and_notify.before_loop
 async def before_scrape():
